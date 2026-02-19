@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Control IoT - R2C</title>
+    <title>Smart Home - R2C</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
         :root {
@@ -12,9 +12,7 @@
             --text-main: #ffffff;
             --text-muted: #888888;
             --accent-blue: #007bff;
-            --btn-on: #28a745;
-            --btn-off: #dc3545;
-            --btn-voice: #6c757d;
+            --btn-voice: #333333;
         }
 
         body {
@@ -28,110 +26,51 @@
             justify-content: center;
         }
 
-        .container {
-            width: 100%;
-            max-width: 450px;
-        }
-
-        h2 {
-            margin-bottom: 5px;
-            font-weight: 600;
-            letter-spacing: 1px;
-        }
-
-        .subtitle {
-            color: var(--text-muted);
-            font-size: 0.9em;
-            margin-bottom: 30px;
-        }
+        .container { width: 100%; max-width: 450px; }
+        h2 { margin-bottom: 5px; font-weight: 600; letter-spacing: 1px; }
+        .subtitle { color: var(--text-muted); font-size: 0.9em; margin-bottom: 30px; }
 
         #status {
-            display: inline-block;
-            padding: 8px 16px;
-            background-color: #333;
-            border-radius: 20px;
-            font-size: 0.85em;
-            font-weight: bold;
-            margin-bottom: 30px;
+            display: inline-block; padding: 8px 16px; background-color: #333;
+            border-radius: 20px; font-size: 0.85em; font-weight: bold; margin-bottom: 30px;
         }
-
         .status-connected { color: #4cd137; }
         .status-disconnected { color: #e84118; }
-        .status-connecting { color: #fbc531; }
 
-        /* Card Layout for Devices */
+        /* Card Layout */
         .device-card {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            background: var(--card-bg); padding: 20px; border-radius: 12px;
+            margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: space-between;
         }
+        .device-info h3 { margin: 0 0 5px 0; font-size: 1.1em; text-align: left; }
+        .device-info p { margin: 0; font-size: 0.8em; color: var(--text-muted); text-align: left; }
 
-        .device-info h3 {
-            margin: 0 0 5px 0;
-            font-size: 1.1em;
-            text-align: left;
+        /* Toggle Switch CSS */
+        .switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #555; transition: .4s; border-radius: 34px;
         }
-
-        .device-info p {
-            margin: 0;
-            font-size: 0.8em;
-            color: var(--text-muted);
-            text-align: left;
+        .slider:before {
+            position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px;
+            background-color: white; transition: .4s; border-radius: 50%;
         }
+        input:checked + .slider { background-color: #28a745; }
+        input:checked + .slider:before { transform: translateX(26px); }
 
-        .btn-group {
-            display: flex;
-            gap: 10px;
-        }
-
-        button {
-            border: none;
-            padding: 10px 18px;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: transform 0.1s, opacity 0.2s;
-            color: white;
-        }
-
-        button:active { transform: scale(0.95); }
-        button:hover { opacity: 0.85; }
-
-        .btn-on { background-color: var(--btn-on); }
-        .btn-off { background-color: var(--btn-off); }
-
-        /* Voice Control Section */
+        /* Voice Control */
         .voice-section {
-            background: var(--card-bg);
-            padding: 25px 20px;
-            border-radius: 12px;
-            margin-top: 30px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            background: var(--card-bg); padding: 25px 20px; border-radius: 12px;
+            margin-top: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
-
         .btn-voice {
-            background-color: var(--accent-blue);
-            width: 100%;
-            padding: 15px;
-            font-size: 16px;
-            border-radius: 50px;
+            background-color: var(--btn-voice); color: white; border: none; width: 100%;
+            padding: 15px; font-size: 16px; border-radius: 50px; cursor: pointer; transition: 0.3s;
         }
-
-        .btn-voice.listening { background-color: var(--btn-off); animation: pulse 1.5s infinite; }
-
-        #transcript {
-            margin-top: 15px;
-            font-style: italic;
-            color: var(--text-muted);
-            font-size: 0.9em;
-            min-height: 20px;
-        }
+        .btn-voice.listening { background-color: #dc3545; animation: pulse 1.5s infinite; }
+        #transcript { margin-top: 15px; font-style: italic; color: var(--text-muted); font-size: 0.9em; min-height: 20px; }
 
         @keyframes pulse {
             0% { transform: scale(1); }
@@ -144,7 +83,7 @@
 
     <div class="container">
         <h2>Smart Home</h2>
-        <div class="subtitle">Broker: broker.emqx.io (WSS Secure)</div>
+        <div class="subtitle">2-Way Feedback System</div>
         
         <div id="status" class="status-disconnected">🔴 Terputus</div>
         
@@ -153,10 +92,10 @@
                 <h3>💡 Lampu</h3>
                 <p>Relay Channel 1</p>
             </div>
-            <div class="btn-group">
-                <button class="btn-on" onclick="kirimPesan('ONLAMP')">ON</button>
-                <button class="btn-off" onclick="kirimPesan('OFFLAMP')">OFF</button>
-            </div>
+            <label class="switch">
+                <input type="checkbox" id="toggleLamp" onchange="handleToggle('LAMP', this)">
+                <span class="slider"></span>
+            </label>
         </div>
 
         <div class="device-card">
@@ -164,10 +103,10 @@
                 <h3>❄️ Kipas</h3>
                 <p>Relay Channel 2</p>
             </div>
-            <div class="btn-group">
-                <button class="btn-on" onclick="kirimPesan('ONFAN')">ON</button>
-                <button class="btn-off" onclick="kirimPesan('OFFFAN')">OFF</button>
-            </div>
+            <label class="switch">
+                <input type="checkbox" id="toggleFan" onchange="handleToggle('FAN', this)">
+                <span class="slider"></span>
+            </label>
         </div>
 
         <div class="voice-section">
@@ -177,92 +116,98 @@
     </div>
 
     <script>
-        // --- Konfigurasi MQTT (EMQX Secure WSS) ---
         const mqttServer = "broker.emqx.io";
-        const mqttPort = 8084; // Port WSS untuk koneksi HTTPS yang aman
-        const mqttTopic = "kontrol/ruangan";
+        const mqttPort = 8084; // WSS Secure
+        const topicCmd  = "kontrol/ruangan/perintah";
+        const topicStat = "kontrol/ruangan/status";
         const clientId = "WebClient-" + Math.random().toString(16).substr(2, 8);
 
-        const statusEl = document.getElementById("status");
-
-        // Inisialisasi Klien MQTT
         const client = new Paho.MQTT.Client(mqttServer, mqttPort, "/mqtt", clientId);
-        client.onConnectionLost = onConnectionLost;
+        const statusEl = document.getElementById("status");
+        const toggleLamp = document.getElementById("toggleLamp");
+        const toggleFan = document.getElementById("toggleFan");
 
-        // Opsi Koneksi dengan SSL
+        client.onConnectionLost = (res) => {
+            statusEl.innerHTML = "🔴 Terputus";
+            statusEl.className = "status-disconnected";
+        };
+
+        // KETIKA PESAN FEEDBACK DARI ESP32 MASUK
+        client.onMessageArrived = (message) => {
+            const msg = message.payloadString;
+            console.log("Feedback masuk: " + msg);
+            
+            // Sinkronkan posisi toggle switch dengan keadaan asli ESP32
+            if (msg === "LAMP_ON") toggleLamp.checked = true;
+            else if (msg === "LAMP_OFF") toggleLamp.checked = false;
+            else if (msg === "FAN_ON") toggleFan.checked = true;
+            else if (msg === "FAN_OFF") toggleFan.checked = false;
+        };
+
         const options = {
             timeout: 3,
-            useSSL: true, // Wajib diaktifkan agar bisa jalan di HTTPS/HP
-            onSuccess: onConnect,
-            onFailure: function (message) {
-                statusEl.innerHTML = "🔴 Gagal Terhubung";
-                statusEl.className = "status-disconnected";
-                console.log("Koneksi gagal: " + message.errorMessage);
+            useSSL: true,
+            onSuccess: () => {
+                statusEl.innerHTML = "🟢 Terhubung";
+                statusEl.className = "status-connected";
+                client.subscribe(topicStat); // Dengarkan feedback dari ESP32
             }
         };
 
-        statusEl.innerHTML = "🟡 Menghubungkan...";
-        statusEl.className = "status-connecting";
         client.connect(options);
 
-        function onConnect() {
-            statusEl.innerHTML = "🟢 Terhubung";
-            statusEl.className = "status-connected";
-            console.log("Terhubung ke MQTT Broker");
-        }
-
-        function onConnectionLost(responseObject) {
-            if (responseObject.errorCode !== 0) {
-                statusEl.innerHTML = "🔴 Terputus";
-                statusEl.className = "status-disconnected";
-                console.log("Koneksi terputus: " + responseObject.errorMessage);
-            }
-        }
-
-        // Fungsi Manual Button
-        function kirimPesan(pesan) {
+        // FUNGSI SAAT TOGGLE SWITCH DIKLIK MANUAL
+        function handleToggle(device, checkbox) {
+            let command = "";
+            if (device === 'LAMP') command = checkbox.checked ? "ONLAMP" : "OFFLAMP";
+            if (device === 'FAN') command = checkbox.checked ? "ONFAN" : "OFFFAN";
+            
             if (client.isConnected()) {
-                const message = new Paho.MQTT.Message(pesan);
-                message.destinationName = mqttTopic;
+                const message = new Paho.MQTT.Message(command);
+                message.destinationName = topicCmd;
                 client.send(message);
-                console.log("Pesan terkirim:", pesan);
             } else {
-                alert("Sistem belum terhubung ke Broker MQTT!");
+                alert("Sistem belum terhubung ke Broker!");
+                checkbox.checked = !checkbox.checked; // Kembalikan posisi jika gagal
             }
         }
 
-        // --- Konfigurasi Web Speech API ---
+        function sendCommand(cmd) {
+            if (client.isConnected()) {
+                const message = new Paho.MQTT.Message(cmd);
+                message.destinationName = topicCmd;
+                client.send(message);
+            }
+        }
+
+        // --- Web Speech API ---
         const btnVoice = document.getElementById('btnVoice');
         const textTranscript = document.getElementById('transcript');
-
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert("Browser Anda tidak mendukung fitur suara. Gunakan Chrome atau Edge.");
-        } else {
+
+        if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
             recognition.lang = 'id-ID'; 
             recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
 
             btnVoice.addEventListener('click', () => {
                 recognition.start();
-                btnVoice.textContent = "Mendengarkan... 🔴";
                 btnVoice.classList.add("listening");
                 textTranscript.textContent = "Silakan bicara...";
             });
 
             recognition.onresult = (event) => {
-                const hasilSuara = event.results[0][0].transcript.toLowerCase();
-                textTranscript.textContent = "Terdengar: \"" + hasilSuara + "\"";
+                const hasil = event.results[0][0].transcript.toLowerCase();
+                textTranscript.textContent = "Terdengar: \"" + hasil + "\"";
 
-                if (hasilSuara.includes("nyalakan lampu")) {
-                    kirimPesan("ONLAMP");
-                } else if (hasilSuara.includes("matikan lampu")) {
-                    kirimPesan("OFFLAMP");
-                } else if (hasilSuara.includes("nyalakan kipas")) {
-                    kirimPesan("ONFAN");
-                } else if (hasilSuara.includes("matikan kipas")) {
-                    kirimPesan("OFFFAN");
+                if (hasil.includes("nyalakan lampu")) {
+                    toggleLamp.checked = true; sendCommand("ONLAMP");
+                } else if (hasil.includes("matikan lampu")) {
+                    toggleLamp.checked = false; sendCommand("OFFLAMP");
+                } else if (hasil.includes("nyalakan kipas")) {
+                    toggleFan.checked = true; sendCommand("ONFAN");
+                } else if (hasil.includes("matikan kipas")) {
+                    toggleFan.checked = false; sendCommand("OFFFAN");
                 } else {
                     textTranscript.textContent += " (Perintah tidak dikenal)";
                 }
@@ -270,13 +215,9 @@
 
             recognition.onspeechend = () => {
                 recognition.stop();
-                btnVoice.textContent = "🎙️ Sentuh untuk Bicara";
                 btnVoice.classList.remove("listening");
             };
-
-            recognition.onerror = (event) => {
-                textTranscript.textContent = "Error: " + event.error;
-                btnVoice.textContent = "🎙️ Sentuh untuk Bicara";
+            recognition.onerror = () => {
                 btnVoice.classList.remove("listening");
             };
         }
