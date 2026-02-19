@@ -146,8 +146,9 @@
     <script>
         const mqttServer = "broker.emqx.io";
         const mqttPort = 8084;
-        const topicCmd  = "kontrol/ruangan/perintah";
-        const topicStat = "kontrol/ruangan/status";
+        const topicCmd      = "kontrol/ruangan/perintah";
+        const topicStatLamp = "kontrol/ruangan/status/lamp";
+        const topicStatFan  = "kontrol/ruangan/status/fan";
         const clientId = "WebClient-" + Math.random().toString(16).substr(2, 8);
 
         const client = new Paho.MQTT.Client(mqttServer, mqttPort, "/mqtt", clientId);
@@ -162,6 +163,7 @@
 
         client.onMessageArrived = (message) => {
             const msg = message.payloadString;
+            // Menangkap feedback dari ESP32
             if (msg === "LAMP_ON") toggleLamp.checked = true;
             else if (msg === "LAMP_OFF") toggleLamp.checked = false;
             else if (msg === "FAN_ON") toggleFan.checked = true;
@@ -174,7 +176,9 @@
             onSuccess: () => {
                 statusEl.innerHTML = "● Online";
                 statusEl.className = "status-dot status-on";
-                client.subscribe(topicStat);
+                // Subscribe ke kedua topik status
+                client.subscribe(topicStatLamp);
+                client.subscribe(topicStatFan);
             }
         };
 
@@ -190,7 +194,7 @@
                 message.destinationName = topicCmd;
                 client.send(message);
             } else {
-                checkbox.checked = !checkbox.checked;
+                checkbox.checked = !checkbox.checked; // Batalkan geseran jika offline
             }
         }
 
