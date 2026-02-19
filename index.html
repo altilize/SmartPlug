@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>R2C Smart Home</title>
+    <link rel="icon" href="data:,">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <style>
         :root {
@@ -13,6 +14,7 @@
             --accent-green: #32d74b;
             --accent-blue: #0a84ff;
             --accent-red: #ff453a;
+            --accent-yellow: #ffd60a;
         }
 
         body {
@@ -27,54 +29,25 @@
             min-height: 100vh;
         }
 
-        .container {
-            width: 100%;
-            max-width: 400px;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-
+        .container { width: 100%; max-width: 400px; padding: 20px; box-sizing: border-box; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
         h2 { margin: 0; font-size: 28px; font-weight: 700; }
 
         .status-dot {
-            font-size: 12px;
-            padding: 6px 12px;
-            border-radius: 20px;
-            background: #2c2c2e;
-            font-weight: 600;
-            transition: color 0.3s;
+            font-size: 12px; padding: 6px 12px; border-radius: 20px;
+            background: #2c2c2e; font-weight: 600; transition: color 0.3s;
         }
         .status-on { color: var(--accent-green); }
         .status-off { color: var(--accent-red); }
+        .status-wait { color: var(--accent-yellow); }
 
         .card {
-            background: var(--card-bg);
-            border-radius: 20px;
-            padding: 24px 20px;
-            margin-bottom: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background: var(--card-bg); border-radius: 20px; padding: 24px 20px;
+            margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;
         }
-
-        .card-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            font-size: 18px;
-            font-weight: 600;
-        }
-
+        .card-left { display: flex; align-items: center; gap: 15px; font-size: 18px; font-weight: 600; }
         .icon { font-size: 26px; }
 
-        /* iOS Style Toggle Switch */
         .switch { position: relative; display: inline-block; width: 54px; height: 30px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider {
@@ -83,37 +56,19 @@
         }
         .slider:before {
             position: absolute; content: ""; height: 26px; width: 26px; left: 2px; bottom: 2px;
-            background-color: white; transition: .3s; border-radius: 50%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         input:checked + .slider { background-color: var(--accent-green); }
         input:checked + .slider:before { transform: translateX(24px); }
 
-        /* Voice Button Minimalist */
         .btn-voice {
-            width: 100%;
-            background: #2c2c2e;
-            color: var(--accent-blue);
-            border: none;
-            padding: 18px;
-            font-size: 16px;
-            font-weight: 600;
-            border-radius: 20px;
-            cursor: pointer;
-            margin-top: 10px;
-            transition: all 0.2s;
+            width: 100%; background: #2c2c2e; color: var(--accent-blue); border: none;
+            padding: 18px; font-size: 16px; font-weight: 600; border-radius: 20px; cursor: pointer;
+            margin-top: 10px; transition: all 0.2s;
         }
         .btn-voice:active { transform: scale(0.97); }
-        .btn-voice.listening {
-            color: var(--accent-red);
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-            100% { transform: scale(1); }
-        }
+        .btn-voice.listening { color: var(--accent-red); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
@@ -121,7 +76,7 @@
     <div class="container">
         <div class="header">
             <h2>Ruangan</h2>
-            <div id="status" class="status-dot status-off">● Offline</div>
+            <div id="status" class="status-dot status-wait">● Menghubungkan...</div>
         </div>
         
         <div class="card">
@@ -144,8 +99,9 @@
     </div>
 
     <script>
-        const mqttServer = "broker.emqx.io";
-        const mqttPort = 8084;
+        // --- Konfigurasi MQTT (HiveMQ Secure WSS) ---
+        const mqttServer = "broker.hivemq.com";
+        const mqttPort = 8884; // Port WSS HiveMQ
         const topicCmd      = "kontrol/ruangan/perintah";
         const topicStatLamp = "kontrol/ruangan/status/lamp";
         const topicStatFan  = "kontrol/ruangan/status/fan";
@@ -156,14 +112,36 @@
         const toggleLamp = document.getElementById("toggleLamp");
         const toggleFan = document.getElementById("toggleFan");
 
+        // --- Variabel Watchdog Timer ---
+        let watchdogTimer;
+        const TIMEOUT_MS = 6000; // 6 detik batas toleransi
+
+        // Fungsi mengubah UI jadi Unready
+        function setDeviceUnready() {
+            statusEl.innerHTML = "● SmartHome (unready)";
+            statusEl.className = "status-dot status-off";
+        }
+
+        // Fungsi me-reset timer setiap kali data masuk
+        function resetWatchdog() {
+            statusEl.innerHTML = "● SmartHome (ready)";
+            statusEl.className = "status-dot status-on";
+            
+            clearTimeout(watchdogTimer);
+            watchdogTimer = setTimeout(setDeviceUnready, TIMEOUT_MS);
+        }
+
         client.onConnectionLost = () => {
-            statusEl.innerHTML = "● Offline";
+            clearTimeout(watchdogTimer);
+            statusEl.innerHTML = "● Broker Terputus";
             statusEl.className = "status-dot status-off";
         };
 
         client.onMessageArrived = (message) => {
+            // Reset timer & ubah status jadi (ready)
+            resetWatchdog();
+
             const msg = message.payloadString;
-            // Menangkap feedback dari ESP32
             if (msg === "LAMP_ON") toggleLamp.checked = true;
             else if (msg === "LAMP_OFF") toggleLamp.checked = false;
             else if (msg === "FAN_ON") toggleFan.checked = true;
@@ -172,18 +150,27 @@
 
         const options = {
             timeout: 3,
-            useSSL: true,
+            useSSL: true, // Wajib TRUE untuk GitHub Pages (HTTPS)
             onSuccess: () => {
-                statusEl.innerHTML = "● Online";
-                statusEl.className = "status-dot status-on";
-                // Subscribe ke kedua topik status
+                statusEl.innerHTML = "● Menunggu Alat...";
+                statusEl.className = "status-dot status-wait";
+                
                 client.subscribe(topicStatLamp);
                 client.subscribe(topicStatFan);
+                
+                // Mulai timer hitung mundur pertama kali
+                watchdogTimer = setTimeout(setDeviceUnready, TIMEOUT_MS);
+            },
+            onFailure: (message) => {
+                statusEl.innerHTML = "● Gagal Koneksi";
+                statusEl.className = "status-dot status-off";
             }
         };
 
+        // Mulai koneksi
         client.connect(options);
 
+        // Fungsi klik manual toggle
         function handleToggle(device, checkbox) {
             let command = "";
             if (device === 'LAMP') command = checkbox.checked ? "ONLAMP" : "OFFLAMP";
@@ -198,6 +185,7 @@
             }
         }
 
+        // Fungsi kirim perintah via suara
         function sendCommand(cmd) {
             if (client.isConnected()) {
                 const message = new Paho.MQTT.Message(cmd);
@@ -206,7 +194,7 @@
             }
         }
 
-        // Web Speech API
+        // --- Web Speech API ---
         const btnVoice = document.getElementById('btnVoice');
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -224,7 +212,6 @@
             recognition.onresult = (event) => {
                 const hasil = event.results[0][0].transcript.toLowerCase();
                 
-                // Tampilkan teks sementara di dalam tombol
                 btnVoice.textContent = `"${hasil}"`;
                 setTimeout(() => { btnVoice.textContent = "🎙️ Kontrol Suara"; }, 3000);
 
