@@ -144,7 +144,7 @@
 
     <div class="container">
         <h2>Smart Home</h2>
-        <div class="subtitle">Broker: broker.emqx.io (WebSocket)</div>
+        <div class="subtitle">Broker: broker.emqx.io (WSS Secure)</div>
         
         <div id="status" class="status-disconnected">🔴 Terputus</div>
         
@@ -171,15 +171,15 @@
         </div>
 
         <div class="voice-section">
-            <button id="btnVoice" class="btn-voice">Tap to Talk</button>
+            <button id="btnVoice" class="btn-voice">🎙️ Sentuh untuk Bicara</button>
             <div id="transcript">Teks suara akan muncul di sini...</div>
         </div>
     </div>
 
     <script>
-        // --- Konfigurasi MQTT (EMQX) ---
+        // --- Konfigurasi MQTT (EMQX Secure WSS) ---
         const mqttServer = "broker.emqx.io";
-        const mqttPort = 8083; // Port WebSocket
+        const mqttPort = 8084; // Port WSS untuk koneksi HTTPS yang aman
         const mqttTopic = "kontrol/ruangan";
         const clientId = "WebClient-" + Math.random().toString(16).substr(2, 8);
 
@@ -189,8 +189,10 @@
         const client = new Paho.MQTT.Client(mqttServer, mqttPort, "/mqtt", clientId);
         client.onConnectionLost = onConnectionLost;
 
+        // Opsi Koneksi dengan SSL
         const options = {
             timeout: 3,
+            useSSL: true, // Wajib diaktifkan agar bisa jalan di HTTPS/HP
             onSuccess: onConnect,
             onFailure: function (message) {
                 statusEl.innerHTML = "🔴 Gagal Terhubung";
@@ -268,13 +270,13 @@
 
             recognition.onspeechend = () => {
                 recognition.stop();
-                btnVoice.textContent = "Tap to Talk";
+                btnVoice.textContent = "🎙️ Sentuh untuk Bicara";
                 btnVoice.classList.remove("listening");
             };
 
             recognition.onerror = (event) => {
                 textTranscript.textContent = "Error: " + event.error;
-                btnVoice.textContent = "Tap to Talk";
+                btnVoice.textContent = "🎙️ Sentuh untuk Bicara";
                 btnVoice.classList.remove("listening");
             };
         }
